@@ -27,34 +27,28 @@
 <div id="page-setup" class="page active">
 
   <div class="card setup-meta">
-    <div class="card-title">Session Info</div>
-    <div class="meta-fields">
-      <div class="meta-field">
-        <label>Home Team</label>
-        <input id="homeTeam" placeholder="e.g. Persija Jakarta" />
-      </div>
-      <div class="meta-field">
-        <label>Away Team</label>
-        <input id="awayTeam" placeholder="e.g. Arema FC" />
-      </div>
-      <div class="meta-field">
-        <label>Competition</label>
-        <input id="competition" placeholder="e.g. Liga 1" />
-      </div>
-      <div class="meta-field">
-        <label>Date</label>
-        <input id="matchDate" type="date" />
-      </div>
-      <div class="meta-field">
-        <label>Venue</label>
-        <input id="venue" placeholder="e.g. GBK Stadium" />
-      </div>
+    <div class="meta-row">
+      <input id="matchName"    placeholder="Match Name" />
+      <select id="competition">
+        <option value="" disabled selected></option>
+        <option>Liga 1</option>
+        <option>Liga 2</option>
+        <option>Piala Indonesia</option>
+        <option>Friendly</option>
+        <option>Other</option>
+      </select>
+      <input id="homeTeam"     placeholder="Home Team" />
+      <input id="awayTeam"     placeholder="Away Team" />
+    </div>
+    <div class="meta-row">
+      <input id="analystName"  placeholder="Analyst Name" style="flex:2" />
+      <input id="teamAnalyzed" placeholder="Team Being Analyzed" style="flex:2" />
+      <input id="matchDate"    type="date" style="flex:1" />
     </div>
   </div>
 
   <div class="roster-grid">
 
-    <!-- HOME -->
     <div class="card">
       <div class="card-title" id="homeTitleLabel">Home Roster</div>
       <table class="roster-table">
@@ -75,7 +69,6 @@
       <button class="add-row-btn" onclick="addPlayer('home')">+ Add Player</button>
     </div>
 
-    <!-- AWAY -->
     <div class="card">
       <div class="card-title" id="awayTitleLabel">Away Roster</div>
       <table class="roster-table">
