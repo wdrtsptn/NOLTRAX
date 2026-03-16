@@ -24,7 +24,15 @@ const RESULT_COLORS = {
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let state = {
-  session:       { home: "", away: "", competition: "", date: "", venue: "" },
+  session: {
+    matchName:    "",
+    competition:  "",
+    home:         "",
+    away:         "",
+    analystName:  "",
+    teamAnalyzed: "",
+    date:         "",
+  },
   roster:        { home: [], away: [] },
   events:        [],
   tag:           { category: null, event: null, result: null, player: null, coord: null },
@@ -43,48 +51,44 @@ function showPage(id, btn) {
 
 // ─── SETUP ────────────────────────────────────────────────────────────────────
 function initRosters() {
-  // 11 starting players
   ["home", "away"].forEach(team => {
     const tbody = document.getElementById(team + "Roster");
     tbody.innerHTML = "";
     for (let i = 1; i <= 11; i++) {
-      tbody.appendChild(makePlayerRow(team, i, false));
+      tbody.appendChild(makePlayerRow(team, false));
     }
   });
 
-  // 5 substitutes
   ["home", "away"].forEach(team => {
     const tbody = document.getElementById(team + "SubRoster");
     tbody.innerHTML = "";
     for (let i = 1; i <= 5; i++) {
-      tbody.appendChild(makePlayerRow(team, i, true));
+      tbody.appendChild(makePlayerRow(team, true));
     }
   });
 }
 
-function makePlayerRow(team, idx, isSub) {
-  const tr = document.createElement("tr");
+function makePlayerRow(team, isSub) {
+  const tr        = document.createElement("tr");
   tr.dataset.team = team;
   tr.dataset.sub  = isSub ? "1" : "0";
-  tr.innerHTML = `
-    <td><input type="number" min="1" max="99" placeholder="No" /></td>
-    <td><input type="text" placeholder="POS" style="text-transform:uppercase;" /></td>
-    <td><input type="text" placeholder="Player name" /></td>
+  tr.innerHTML    = `
+    <td><input type="number" min="1" max="99" placeholder="" /></td>
+    <td><input type="text" placeholder="" style="text-transform:uppercase;" /></td>
+    <td><input type="text" placeholder="" /></td>
     <td><button class="del-btn" onclick="this.closest('tr').remove()">✕</button></td>
   `;
   return tr;
 }
 
 function addPlayer(team) {
-  // Adds to substitutes section by default
   const tbody = document.getElementById(team + "SubRoster");
-  tbody.appendChild(makePlayerRow(team, tbody.rows.length + 1, true));
+  tbody.appendChild(makePlayerRow(team, true));
 }
 
 function getRoster(team) {
   const players = [];
 
-  // Starting players
   document.querySelectorAll(`#${team}Roster tr`).forEach(tr => {
     const inputs = tr.querySelectorAll("input");
     const num    = inputs[0].value.trim();
@@ -93,7 +97,6 @@ function getRoster(team) {
     if (num) players.push({ number: num, pos: pos || "—", name: name || `#${num}`, team, sub: false });
   });
 
-  // Substitutes
   document.querySelectorAll(`#${team}SubRoster tr`).forEach(tr => {
     const inputs = tr.querySelectorAll("input");
     const num    = inputs[0].value.trim();
@@ -107,17 +110,18 @@ function getRoster(team) {
 
 function startSession() {
   state.session = {
-    home:        document.getElementById("homeTeam").value.trim()    || "Home",
-    away:        document.getElementById("awayTeam").value.trim()    || "Away",
-    competition: document.getElementById("competition").value.trim() || "",
-    date:        document.getElementById("matchDate").value          || new Date().toISOString().split("T")[0],
-    venue:       document.getElementById("venue").value.trim()       || "",
+    matchName:    document.getElementById("matchName").value.trim()    || "",
+    competition:  document.getElementById("competition").value.trim()  || "",
+    home:         document.getElementById("homeTeam").value.trim()     || "Home",
+    away:         document.getElementById("awayTeam").value.trim()     || "Away",
+    analystName:  document.getElementById("analystName").value.trim()  || "",
+    teamAnalyzed: document.getElementById("teamAnalyzed").value.trim() || "",
+    date:         document.getElementById("matchDate").value           || new Date().toISOString().split("T")[0],
   };
 
   state.roster.home = getRoster("home");
   state.roster.away = getRoster("away");
 
-  // Update roster card titles with team names
   document.getElementById("homeTitleLabel").textContent = state.session.home + " — Roster";
   document.getElementById("awayTitleLabel").textContent = state.session.away + " — Roster";
 
@@ -135,7 +139,6 @@ function startSession() {
 
 // ─── TAG PANEL ────────────────────────────────────────────────────────────────
 function buildTagPanel() {
-  // Categories
   const catGrid = document.getElementById("catGrid");
   catGrid.innerHTML = "";
   Object.entries(EVENT_HIERARCHY).forEach(([cat, data]) => {
@@ -146,7 +149,6 @@ function buildTagPanel() {
     catGrid.appendChild(btn);
   });
 
-  // Results
   const resGrid = document.getElementById("resGrid");
   resGrid.innerHTML = "";
   RESULTS.forEach(res => {
@@ -219,12 +221,10 @@ function renderPlayerGrid() {
 
   const addSection = (players, label) => {
     if (!players.length) return;
-
-    const lbl = document.createElement("div");
+    const lbl         = document.createElement("div");
     lbl.style.cssText = "width:100%; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.35; padding:4px 0 2px;";
     lbl.textContent   = label;
     grid.appendChild(lbl);
-
     players.forEach(p => {
       const btn       = document.createElement("button");
       btn.className   = "pl-btn";
@@ -256,8 +256,8 @@ function updateSteps() {
   flags.forEach((filled, i) => {
     const dot = document.getElementById("dot" + i);
     dot.classList.remove("active", "done");
-    if (i < done - 1)         dot.classList.add("done");
-    else if (i === done - 1)  dot.classList.add("active");
+    if (i < done - 1)        dot.classList.add("done");
+    else if (i === done - 1) dot.classList.add("active");
   });
 }
 
@@ -287,38 +287,31 @@ function renderPitchLines(ctx, W, H) {
   ctx.strokeStyle = "rgba(255,255,255,0.3)";
   ctx.lineWidth   = 1;
 
-  // Outline
   ctx.strokeRect(4, 4, W - 8, H - 8);
 
-  // Halfway line
   ctx.beginPath();
   ctx.moveTo(4, H / 2);
   ctx.lineTo(W - 4, H / 2);
   ctx.stroke();
 
-  // Center circle
   ctx.beginPath();
   ctx.arc(W / 2, H / 2, H * 0.14, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Center dot
   ctx.fillStyle = "rgba(255,255,255,0.4)";
   ctx.beginPath();
   ctx.arc(W / 2, H / 2, 2, 0, Math.PI * 2);
   ctx.fill();
 
-  // Penalty areas
   const paW = W * 0.38;
   const paH = H * 0.23;
   const gaW = W * 0.14;
   const gaH = H * 0.1;
 
-  // Top
-  ctx.strokeRect((W - paW) / 2, 4,           paW, paH);
-  ctx.strokeRect((W - gaW) / 2, 4,           gaW, gaH);
-  // Bottom
-  ctx.strokeRect((W - paW) / 2, H - 4 - paH, paW, paH);
-  ctx.strokeRect((W - gaW) / 2, H - 4 - gaH, gaW, gaH);
+  ctx.strokeRect((W - paW) / 2, 4,            paW, paH);
+  ctx.strokeRect((W - gaW) / 2, 4,            gaW, gaH);
+  ctx.strokeRect((W - paW) / 2, H - 4 - paH,  paW, paH);
+  ctx.strokeRect((W - gaW) / 2, H - 4 - gaH,  gaW, gaH);
 }
 
 function drawMarker(ctx, x, y) {
@@ -648,3 +641,10 @@ initRosters();
 
 ---
 
+Struktur folder:
+```
+noltrax-track/
+├── track.html
+├── track.css
+├── track.js
+└── 20260128_204214.jpg
