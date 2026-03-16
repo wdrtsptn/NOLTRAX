@@ -206,7 +206,7 @@ body {
 .roster-table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 4px;
+  border-spacing: 0 3px;
 }
 
 .roster-table thead th {
@@ -235,18 +235,21 @@ body {
 
 .roster-table td {
   padding: 2px 2px;
+  height: 36px;
 }
 
 .roster-table input {
   width: 100%;
+  height: 32px;
   background: transparent;
   border: 1px solid rgba(255,255,255,0.1);
   color: white;
-  padding: 8px;
+  padding: 6px 8px;
   border-radius: 6px;
   outline: none;
   font-size: 12px;
   font-family: inherit;
+  display: block;
 }
 
 .roster-table input:focus {
