@@ -1,608 +1,620 @@
-// ================================
-// GLOBAL STATE
-// ================================
-
-let tracking = false;
-let startTime = null;
-let pausedTime = 0;
-let timerInterval = null;
-let eventLog = [];
-let stats = {
-  home: {
-    passes: 0,
-    shots: 0,
-    goals: 0,
-    tackles: 0,
-    interceptions: 0,
-    corners: 0,
-    fouls: 0,
-    dribbles: 0,
-    keyPasses: 0,
-    longBalls: 0,
-    crosses: 0,
-    offsides: 0
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const EVENT_HIERARCHY = {
+  Attack: {
+    color: "#e85d3a",
+    events: ["Shot", "Cross", "Dribble", "Corner", "Freekick", "Throw In", "Header"],
   },
-  away: {
-    passes: 0,
-    shots: 0,
-    goals: 0,
-    tackles: 0,
-    interceptions: 0,
-    corners: 0,
-    fouls: 0,
-    dribbles: 0,
-    keyPasses: 0,
-    longBalls: 0,
-    crosses: 0,
-    offsides: 0
-  }
+  Transition: {
+    color: "#1e5eff",
+    events: ["Pass", "Long Ball", "Counter", "Build Up"],
+  },
+  Defense: {
+    color: "#2eb87a",
+    events: ["Tackle", "Interception", "Clearance", "Block", "High Press", "Low Press"],
+  },
 };
 
-// POSSESSION STOPWATCH VARIABLES
-let homeElapsed = 0;
-let awayElapsed = 0;
-let possessionActive = null; // 'home', 'away', or null
-let possessionStartTime = null;
-let lastQPress = 0;
-let possessionTimer = null;
+const RESULTS = ["Good", "Needs Work", "Bad"];
 
-// ================================
-// DOM ELEMENTS
-// ================================
+const RESULT_COLORS = {
+  "Good":       "#2eb87a",
+  "Needs Work": "#e8a83a",
+  "Bad":        "#e85d3a",
+};
 
-const matchNameInput = document.getElementById("matchName");
-const matchDateInput = document.getElementById("matchDate");
-const homeTeamInput = document.getElementById("homeTeam");
-const awayTeamInput = document.getElementById("awayTeam");
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let state = {
+  session:      { home: "", away: "", competition: "", date: "" },
+  roster:       { home: [], away: [] },
+  events:       [],
+  tag:          { category: null, event: null, result: null, player: null, coord: null },
+  videoSource:  "local",
+  heatmapFilter: "all",
+};
 
-const startBtn = document.getElementById("startBtn");
-const endBtn = document.getElementById("endBtn");
-const exportBtn = document.getElementById("exportBtn");
-
-const statusDiv = document.getElementById("status");
-const timerDiv = document.getElementById("timer");
-const logList = document.getElementById("log");
-
-const homeTeamNameSpan = document.getElementById("homeTeamName");
-const awayTeamNameSpan = document.getElementById("awayTeamName");
-
-const homeTimeEl = document.getElementById("homeTime");
-const awayTimeEl = document.getElementById("awayTime");
-const livePossessionEl = document.getElementById("livePossession");
-const finalPossessionEl = document.getElementById("finalPossession");
-
-const toggleKeyboardBtn = document.getElementById("toggleKeyboard");
-const keyboardGuide = document.getElementById("keyboardGuide");
-
-// Set default date
-matchDateInput.valueAsDate = new Date();
-
-// ================================
-// EVENT LISTENERS
-// ================================
-
-startBtn.addEventListener("click", startTracking);
-endBtn.addEventListener("click", endMatch);
-exportBtn.addEventListener("click", exportJSON);
-
-// Keyboard toggle
-toggleKeyboardBtn.addEventListener("click", () => {
-  if (keyboardGuide.style.display === "none") {
-    keyboardGuide.style.display = "block";
-    toggleKeyboardBtn.textContent = "⌨️ Hide Keyboard Shortcuts";
-  } else {
-    keyboardGuide.style.display = "none";
-    toggleKeyboardBtn.textContent = "⌨️ Show Keyboard Shortcuts";
-  }
-});
-
-// Team name sync
-homeTeamInput.addEventListener("input", () => {
-  homeTeamNameSpan.textContent = homeTeamInput.value || "Home";
-});
-
-awayTeamInput.addEventListener("input", () => {
-  awayTeamNameSpan.textContent = awayTeamInput.value || "Away";
-});
-
-// Keyboard shortcuts
-document.addEventListener("keydown", handleKeyPress);
-
-// ================================
-// TRACKING FUNCTIONS
-// ================================
-
-function startTracking() {
-  if (tracking) {
-    pauseTracking();
-    return;
-  }
-
-  if (!homeTeamInput.value || !awayTeamInput.value) {
-    alert("❌ Please enter both team names before starting!");
-    return;
-  }
-
-  tracking = true;
-  if (!startTime) {
-    startTime = Date.now() - pausedTime;
-  } else {
-    startTime = Date.now() - pausedTime;
-  }
-  
-  startBtn.textContent = "⏸ Pause";
-  startBtn.style.background = "#f59e0b";
-  endBtn.disabled = false;
-  
-  statusDiv.textContent = "🟢 Active";
-  statusDiv.classList.add("tracking");
-
-  // Start timer
-  timerInterval = setInterval(updateTimer, 1000);
-  updateTimer();
+// ─── PAGE NAVIGATION ──────────────────────────────────────────────────────────
+function showPage(id, btn) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("page-" + id).classList.add("active");
+  btn.classList.add("active");
+  if (id === "analysis") renderAnalysis();
 }
 
-function pauseTracking() {
-  tracking = false;
-  clearInterval(timerInterval);
-  pausedTime = Date.now() - startTime;
-  
-  startBtn.textContent = "▶ Resume";
-  startBtn.style.background = "#10b981";
-  
-  statusDiv.textContent = "⏸ Paused";
-  statusDiv.classList.remove("tracking");
-}
-
-function endMatch() {
-  if (!confirm("End match and finalize stats?")) return;
-  
-  tracking = false;
-  clearInterval(timerInterval);
-  stopAllPossession();
-  
-  startBtn.disabled = true;
-  endBtn.disabled = true;
-  exportBtn.disabled = false;
-  
-  statusDiv.textContent = "✅ Match Ended";
-  statusDiv.classList.remove("tracking");
-}
-
-function updateTimer() {
-  if (!startTime) return;
-  
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = elapsed % 60;
-  
-  timerDiv.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-// ================================
-// POSSESSION STOPWATCH LOGIC
-// ================================
-
-function handleQPress() {
-  const now = Date.now();
-  
-  // Double tap detection (< 400ms)
-  if (now - lastQPress < 400) {
-    stopAllPossession();
-    lastQPress = 0;
-    return;
-  }
-  
-  lastQPress = now;
-  
-  // Toggle possession
-  if (possessionActive === null) {
-    startHomePossession();
-  } else if (possessionActive === 'home') {
-    switchToAwayPossession();
-  } else if (possessionActive === 'away') {
-    switchToHomePossession();
-  }
-}
-
-function startHomePossession() {
-  possessionActive = 'home';
-  possessionStartTime = Date.now();
-  runPossessionTimer();
-}
-
-function switchToAwayPossession() {
-  stopPossessionTimer();
-  const diff = Date.now() - possessionStartTime;
-  if (possessionActive === 'home') homeElapsed += diff;
-  
-  possessionActive = 'away';
-  possessionStartTime = Date.now();
-  runPossessionTimer();
-}
-
-function switchToHomePossession() {
-  stopPossessionTimer();
-  const diff = Date.now() - possessionStartTime;
-  if (possessionActive === 'away') awayElapsed += diff;
-  
-  possessionActive = 'home';
-  possessionStartTime = Date.now();
-  runPossessionTimer();
-}
-
-function stopAllPossession() {
-  if (!possessionActive) return;
-  
-  stopPossessionTimer();
-  const diff = Date.now() - possessionStartTime;
-  
-  if (possessionActive === 'home') homeElapsed += diff;
-  else awayElapsed += diff;
-  
-  possessionActive = null;
-  updatePossessionDisplay();
-  showFinalPossession();
-}
-
-function runPossessionTimer() {
-  stopPossessionTimer();
-  possessionTimer = setInterval(() => {
-    const diff = Date.now() - possessionStartTime;
-    if (possessionActive === 'home') {
-      homeTimeEl.textContent = formatTime(homeElapsed + diff);
-    } else if (possessionActive === 'away') {
-      awayTimeEl.textContent = formatTime(awayElapsed + diff);
+// ─── SETUP ────────────────────────────────────────────────────────────────────
+function initRosters() {
+  ["home", "away"].forEach(team => {
+    const tbody = document.getElementById(team + "Roster");
+    tbody.innerHTML = "";
+    for (let i = 1; i <= 11; i++) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input type="number" min="1" max="99" value="${i}" /></td>
+        <td><input type="text" placeholder="Player ${i}" /></td>
+        <td><button class="del-btn" onclick="this.closest('tr').remove()">✕</button></td>
+      `;
+      tbody.appendChild(tr);
     }
-    updateLivePossession(diff);
-  }, 200);
-}
-
-function stopPossessionTimer() {
-  if (possessionTimer) {
-    clearInterval(possessionTimer);
-    possessionTimer = null;
-  }
-}
-
-function updatePossessionDisplay() {
-  homeTimeEl.textContent = formatTime(homeElapsed);
-  awayTimeEl.textContent = formatTime(awayElapsed);
-  updateLivePossession();
-}
-
-function formatTime(ms) {
-  const s = Math.floor(ms / 1000);
-  const m = Math.floor(s / 60).toString().padStart(2, '0');
-  const sec = (s % 60).toString().padStart(2, '0');
-  return `${m}:${sec}`;
-}
-
-function updateLivePossession(diff = 0) {
-  const h = possessionActive === 'home' ? homeElapsed + diff : homeElapsed;
-  const a = possessionActive === 'away' ? awayElapsed + diff : awayElapsed;
-  const total = h + a;
-  
-  if (total <= 0) {
-    livePossessionEl.textContent = '0% - 0%';
-    return;
-  }
-  
-  const homePct = ((h / total) * 100).toFixed(1);
-  const awayPct = ((a / total) * 100).toFixed(1);
-  livePossessionEl.textContent = `${homePct}% - ${awayPct}%`;
-}
-
-function showFinalPossession() {
-  const total = homeElapsed + awayElapsed;
-  if (total <= 0) {
-    finalPossessionEl.textContent = '';
-    return;
-  }
-  
-  const homePct = ((homeElapsed / total) * 100).toFixed(1);
-  const awayPct = ((awayElapsed / total) * 100).toFixed(1);
-  finalPossessionEl.textContent = `Final: Home ${homePct}% — Away ${awayPct}%`;
-}
-
-function resetPossessionStopwatch() {
-  stopPossessionTimer();
-  possessionActive = null;
-  homeElapsed = 0;
-  awayElapsed = 0;
-  updatePossessionDisplay();
-  finalPossessionEl.textContent = '';
-}
-
-// ================================
-// KEYBOARD HANDLER
-// ================================
-
-function handleKeyPress(e) {
-  // Ignore if typing in input
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  
-  const key = e.key.toLowerCase();
-  const shift = e.shiftKey;
-  
-  // Controls
-  if (key === ' ') {
-    e.preventDefault();
-    if (!startTime) {
-      startTracking();
-    } else if (tracking) {
-      pauseTracking();
-    } else {
-      startTracking();
-    }
-    return;
-  }
-  
-  if (key === 'q') {
-    e.preventDefault();
-    handleQPress();
-    return;
-  }
-  
-  if (key === 'z') {
-    e.preventDefault();
-    undoLast();
-    return;
-  }
-  
-  if (key === 'w') {
-    e.preventDefault();
-    endMatch();
-    return;
-  }
-  
-  if (key === 'e') {
-    e.preventDefault();
-    if (!exportBtn.disabled) {
-      exportJSON();
-    }
-    return;
-  }
-  
-  if (key === 'r') {
-    e.preventDefault();
-    if (confirm("Reset all stats? This cannot be undone!")) {
-      resetAll();
-    }
-    return;
-  }
-  
-  // Only log events if tracking is active
-  if (!tracking) return;
-  
-  const team = shift ? 'away' : 'home';
-  let eventType = null;
-  
-  // Map keys to event types
-  switch(key) {
-    case 'p': eventType = 'passes'; break;
-    case 's': eventType = 'shots'; break;
-    case 'g': eventType = 'goals'; break;
-    case 't': eventType = 'tackles'; break;
-    case 'i': eventType = 'interceptions'; break;
-    case 'c': eventType = 'corners'; break;
-    case 'f': eventType = 'fouls'; break;
-    case 'd': eventType = 'dribbles'; break;
-    case 'k': eventType = 'keyPasses'; break;
-    case 'l': eventType = 'longBalls'; break;
-    case 'x': eventType = 'crosses'; break;
-    case 'o': eventType = 'offsides'; break;
-    default: return;
-  }
-  
-  if (eventType) {
-    e.preventDefault();
-    logEvent(team, eventType);
-  }
-}
-
-// ================================
-// EVENT LOGGING
-// ================================
-
-function logEvent(team, eventType) {
-  // Increment stat
-  stats[team][eventType]++;
-  
-  // Get current time
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = elapsed % 60;
-  const timestamp = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  
-  // Create event object
-  const event = {
-    team,
-    type: eventType,
-    timestamp,
-    time: elapsed
-  };
-  
-  eventLog.push(event);
-  
-  // Update UI
-  updateStats();
-  updateLog();
-}
-
-function updateStats() {
-  // Home team
-  document.getElementById("homePasses").textContent = stats.home.passes;
-  document.getElementById("homeShots").textContent = stats.home.shots;
-  document.getElementById("homeGoals").textContent = stats.home.goals;
-  document.getElementById("homeTackles").textContent = stats.home.tackles;
-  document.getElementById("homeInterceptions").textContent = stats.home.interceptions;
-  document.getElementById("homeCorners").textContent = stats.home.corners;
-  document.getElementById("homeFouls").textContent = stats.home.fouls;
-  document.getElementById("homeDribbles").textContent = stats.home.dribbles;
-  document.getElementById("homeKeyPasses").textContent = stats.home.keyPasses;
-  document.getElementById("homeLongBalls").textContent = stats.home.longBalls;
-  document.getElementById("homeCrosses").textContent = stats.home.crosses;
-  document.getElementById("homeOffsides").textContent = stats.home.offsides;
-  
-  // Away team
-  document.getElementById("awayPasses").textContent = stats.away.passes;
-  document.getElementById("awayShots").textContent = stats.away.shots;
-  document.getElementById("awayGoals").textContent = stats.away.goals;
-  document.getElementById("awayTackles").textContent = stats.away.tackles;
-  document.getElementById("awayInterceptions").textContent = stats.away.interceptions;
-  document.getElementById("awayCorners").textContent = stats.away.corners;
-  document.getElementById("awayFouls").textContent = stats.away.fouls;
-  document.getElementById("awayDribbles").textContent = stats.away.dribbles;
-  document.getElementById("awayKeyPasses").textContent = stats.away.keyPasses;
-  document.getElementById("awayLongBalls").textContent = stats.away.longBalls;
-  document.getElementById("awayCrosses").textContent = stats.away.crosses;
-  document.getElementById("awayOffsides").textContent = stats.away.offsides;
-}
-
-function updateLog() {
-  logList.innerHTML = "";
-  
-  // Show last 15 events (reverse chronological)
-  const recentEvents = eventLog.slice(-15).reverse();
-  
-  recentEvents.forEach(event => {
-    const li = document.createElement("li");
-    li.className = event.team;
-    
-    const eventName = formatEventName(event.type);
-    const teamName = event.team === 'home' ? homeTeamInput.value : awayTeamInput.value;
-    
-    li.innerHTML = `
-      <strong>${eventName}</strong>
-      <span>${teamName} - ${event.timestamp}</span>
-    `;
-    
-    logList.appendChild(li);
   });
 }
 
-function formatEventName(type) {
-  const names = {
-    passes: "Pass",
-    shots: "Shot",
-    goals: "Goal",
-    tackles: "Tackle",
-    interceptions: "Interception",
-    corners: "Corner",
-    fouls: "Foul",
-    dribbles: "Dribble",
-    keyPasses: "Key Pass",
-    longBalls: "Long Ball",
-    crosses: "Cross",
-    offsides: "Offside"
-  };
-  
-  return names[type] || type;
+function addPlayer(team) {
+  const tbody = document.getElementById(team + "Roster");
+  const idx = tbody.rows.length + 1;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><input type="number" min="1" max="99" placeholder="${idx}" /></td>
+    <td><input type="text" placeholder="Player name" /></td>
+    <td><button class="del-btn" onclick="this.closest('tr').remove()">✕</button></td>
+  `;
+  tbody.appendChild(tr);
 }
 
-// ================================
-// UTILITY FUNCTIONS
-// ================================
+function getRoster(team) {
+  const rows = document.querySelectorAll(`#${team}Roster tr`);
+  const players = [];
+  rows.forEach(tr => {
+    const inputs = tr.querySelectorAll("input");
+    const num  = inputs[0].value.trim();
+    const name = inputs[1].value.trim();
+    if (num) players.push({ number: num, name: name || `#${num}`, team });
+  });
+  return players;
+}
 
-function undoLast() {
-  if (eventLog.length === 0) {
-    alert("No events to undo!");
+function startSession() {
+  state.session = {
+    home:        document.getElementById("homeTeam").value.trim()    || "Home",
+    away:        document.getElementById("awayTeam").value.trim()    || "Away",
+    competition: document.getElementById("competition").value.trim() || "",
+    date:        document.getElementById("matchDate").value          || new Date().toISOString().split("T")[0],
+  };
+  state.roster.home = getRoster("home");
+  state.roster.away = getRoster("away");
+
+  buildTagPanel();
+  renderPlayerGrid();
+  drawPitch();
+
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("page-tagging").classList.add("active");
+  document.querySelectorAll(".nav-tab")[1].classList.add("active");
+
+  toast("Session started");
+}
+
+// ─── TAG PANEL ────────────────────────────────────────────────────────────────
+function buildTagPanel() {
+  // Categories
+  const catGrid = document.getElementById("catGrid");
+  catGrid.innerHTML = "";
+  Object.entries(EVENT_HIERARCHY).forEach(([cat, data]) => {
+    const btn = document.createElement("button");
+    btn.className   = "cat-btn";
+    btn.textContent = cat;
+    btn.onclick     = () => selectCategory(cat, btn, data.color);
+    catGrid.appendChild(btn);
+  });
+
+  // Results
+  const resGrid = document.getElementById("resGrid");
+  resGrid.innerHTML = "";
+  RESULTS.forEach(res => {
+    const btn = document.createElement("button");
+    btn.className   = "res-btn";
+    btn.textContent = res;
+    btn.onclick     = () => selectResult(res, btn);
+    resGrid.appendChild(btn);
+  });
+}
+
+function selectCategory(cat, btn, color) {
+  state.tag.category = cat;
+  state.tag.event    = null;
+
+  document.querySelectorAll(".cat-btn").forEach(b => {
+    b.classList.remove("selected");
+    b.style.background  = "";
+    b.style.borderColor = "rgba(255,255,255,0.12)";
+  });
+  btn.classList.add("selected");
+  btn.style.background  = color;
+  btn.style.borderColor = color;
+
+  // Render events for this category
+  const evGrid = document.getElementById("evGrid");
+  evGrid.innerHTML = "";
+  EVENT_HIERARCHY[cat].events.forEach(ev => {
+    const b = document.createElement("button");
+    b.className   = "ev-btn";
+    b.textContent = ev;
+    b.onclick     = () => selectEvent(ev, b);
+    evGrid.appendChild(b);
+  });
+
+  updateSteps();
+  checkReady();
+}
+
+function selectEvent(ev, btn) {
+  state.tag.event = ev;
+  document.querySelectorAll(".ev-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  updateSteps();
+  checkReady();
+}
+
+function selectResult(res, btn) {
+  state.tag.result = res;
+  document.querySelectorAll(".res-btn").forEach(b => {
+    b.classList.remove("selected");
+    b.style.background  = "";
+    b.style.borderColor = "rgba(255,255,255,0.12)";
+    b.style.color       = "";
+  });
+  btn.classList.add("selected");
+  btn.style.background  = RESULT_COLORS[res];
+  btn.style.borderColor = RESULT_COLORS[res];
+  updateSteps();
+  checkReady();
+}
+
+function renderPlayerGrid() {
+  const grid = document.getElementById("playerGrid");
+  grid.innerHTML = "";
+
+  if (!state.roster.home.length && !state.roster.away.length) {
+    grid.innerHTML = `<div class="empty-state" style="padding:8px 0; font-size:11px; width:100%">No players in roster</div>`;
     return;
   }
-  
-  const lastEvent = eventLog.pop();
-  stats[lastEvent.team][lastEvent.type]--;
-  
-  updateStats();
-  updateLog();
-  
-  console.log("Undone:", lastEvent);
-}
 
-function resetAll() {
-  tracking = false;
-  startTime = null;
-  pausedTime = 0;
-  clearInterval(timerInterval);
-  eventLog = [];
-  
-  stats = {
-    home: {
-      passes: 0, shots: 0, goals: 0, tackles: 0, interceptions: 0,
-      corners: 0, fouls: 0, dribbles: 0, keyPasses: 0, longBalls: 0,
-      crosses: 0, offsides: 0
-    },
-    away: {
-      passes: 0, shots: 0, goals: 0, tackles: 0, interceptions: 0,
-      corners: 0, fouls: 0, dribbles: 0, keyPasses: 0, longBalls: 0,
-      crosses: 0, offsides: 0
-    }
+  const addTeamSection = (players, label) => {
+    if (!players.length) return;
+    const lbl = document.createElement("div");
+    lbl.style.cssText = "width:100%; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.35; padding:2px 0;";
+    lbl.textContent   = label;
+    grid.appendChild(lbl);
+
+    players.forEach(p => {
+      const btn = document.createElement("button");
+      btn.className   = "pl-btn";
+      btn.textContent = `#${p.number} ${p.name}`;
+      btn.onclick     = () => selectPlayer(p, btn);
+      grid.appendChild(btn);
+    });
   };
-  
-  timerDiv.textContent = "00:00";
-  logList.innerHTML = "";
-  
-  startBtn.textContent = "🎬 Start Tracking";
-  startBtn.style.background = "#10b981";
-  startBtn.disabled = false;
-  endBtn.disabled = true;
-  exportBtn.disabled = true;
-  
-  statusDiv.textContent = "Press SPACE to start";
-  statusDiv.classList.remove("tracking");
-  
-  updateStats();
-  resetPossessionStopwatch();
+
+  addTeamSection(state.roster.home, state.session.home);
+  addTeamSection(state.roster.away, state.session.away);
 }
 
-// ================================
-// EXPORT FUNCTION
-// ================================
+function selectPlayer(player, btn) {
+  state.tag.player = player;
+  document.querySelectorAll(".pl-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  updateSteps();
+  checkReady();
+}
 
+// ─── STEPS INDICATOR ─────────────────────────────────────────────────────────
+function updateSteps() {
+  const t     = state.tag;
+  const flags = [true, !!t.category, !!t.event, !!t.result, !!t.player];
+  const done  = flags.filter(Boolean).length;
+
+  flags.forEach((filled, i) => {
+    const dot = document.getElementById("dot" + i);
+    dot.classList.remove("active", "done");
+    if (i < done - 1)    dot.classList.add("done");
+    else if (i === done - 1) dot.classList.add("active");
+  });
+}
+
+function checkReady() {
+  const t     = state.tag;
+  const ready = t.category && t.event && t.result && t.player;
+  document.getElementById("submitBtn").classList.toggle("ready", !!ready);
+}
+
+// ─── PITCH MAP ────────────────────────────────────────────────────────────────
+function drawPitch() {
+  const canvas = document.getElementById("pitchCanvas");
+  const wrap   = document.getElementById("pitchWrap");
+  canvas.width  = wrap.offsetWidth;
+  canvas.height = wrap.offsetHeight;
+  const ctx = canvas.getContext("2d");
+  renderPitchLines(ctx, canvas.width, canvas.height);
+  if (state.tag.coord) {
+    const px = state.tag.coord.x / 100 * canvas.width;
+    const py = state.tag.coord.y / 100 * canvas.height;
+    drawMarker(ctx, px, py);
+  }
+}
+
+function renderPitchLines(ctx, W, H) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(255,255,255,0.3)";
+  ctx.lineWidth   = 1;
+
+  // Outline
+  ctx.strokeRect(4, 4, W - 8, H - 8);
+
+  // Halfway line
+  ctx.beginPath();
+  ctx.moveTo(4, H / 2);
+  ctx.lineTo(W - 4, H / 2);
+  ctx.stroke();
+
+  // Center circle
+  ctx.beginPath();
+  ctx.arc(W / 2, H / 2, H * 0.14, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Center dot
+  ctx.fillStyle = "rgba(255,255,255,0.4)";
+  ctx.beginPath();
+  ctx.arc(W / 2, H / 2, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Penalty areas
+  const paW = W * 0.38;
+  const paH = H * 0.23;
+  const gaW = W * 0.14;
+  const gaH = H * 0.1;
+
+  ctx.strokeStyle = "rgba(255,255,255,0.3)";
+  // Top
+  ctx.strokeRect((W - paW) / 2, 4, paW, paH);
+  ctx.strokeRect((W - gaW) / 2, 4, gaW, gaH);
+  // Bottom
+  ctx.strokeRect((W - paW) / 2, H - 4 - paH, paW, paH);
+  ctx.strokeRect((W - gaW) / 2, H - 4 - gaH, gaW, gaH);
+}
+
+function drawMarker(ctx, x, y) {
+  ctx.fillStyle   = "#1e5eff";
+  ctx.beginPath();
+  ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "white";
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+document.getElementById("pitchWrap").addEventListener("click", function (e) {
+  const rect = this.getBoundingClientRect();
+  const x    = ((e.clientX - rect.left)  / rect.width)  * 100;
+  const y    = ((e.clientY - rect.top)   / rect.height) * 100;
+  state.tag.coord = { x: Math.round(x), y: Math.round(y) };
+
+  const canvas = document.getElementById("pitchCanvas");
+  const ctx    = canvas.getContext("2d");
+  renderPitchLines(ctx, canvas.width, canvas.height);
+  drawMarker(ctx, e.clientX - rect.left, e.clientY - rect.top);
+  updateSteps();
+  checkReady();
+});
+
+window.addEventListener("resize", () => {
+  if (state.session.home) drawPitch();
+});
+
+// ─── SUBMIT EVENT ─────────────────────────────────────────────────────────────
+function getTimestamp() {
+  const video = document.querySelector("#videoWrapper video");
+  if (video && !isNaN(video.currentTime)) {
+    const t = Math.floor(video.currentTime);
+    const m = String(Math.floor(t / 60)).padStart(2, "0");
+    const s = String(t % 60).padStart(2, "0");
+    return `${m}:${s}`;
+  }
+  return "--:--";
+}
+
+function submitEvent() {
+  const t = state.tag;
+  if (!t.category || !t.event || !t.result || !t.player) return;
+
+  const ev = {
+    id:        Date.now(),
+    timestamp: getTimestamp(),
+    team:      t.player.team,
+    player:    { number: t.player.number, name: t.player.name },
+    category:  t.category,
+    event:     t.event,
+    result:    t.result,
+    coord:     t.coord || null,
+    notes:     document.getElementById("notesInput").value.trim(),
+  };
+
+  state.events.unshift(ev);
+  renderLog();
+  resetTag();
+  toast("Event tagged");
+}
+
+function resetTag() {
+  state.tag = { category: null, event: null, result: null, player: null, coord: null };
+
+  document.querySelectorAll(".cat-btn, .ev-btn, .res-btn, .pl-btn").forEach(b => {
+    b.classList.remove("selected");
+    b.style.background  = "";
+    b.style.borderColor = "";
+    b.style.color       = "";
+  });
+
+  document.getElementById("evGrid").innerHTML = `
+    <div class="empty-state" style="grid-column:1/-1; padding:12px 0; font-size:11px">
+      Select category first
+    </div>`;
+  document.getElementById("notesInput").value = "";
+  document.getElementById("submitBtn").classList.remove("ready");
+
+  drawPitch();
+  updateSteps();
+}
+
+// ─── EVENT LOG ────────────────────────────────────────────────────────────────
+function renderLog() {
+  const log = document.getElementById("eventLog");
+  document.getElementById("logCount").textContent = state.events.length;
+
+  if (!state.events.length) {
+    log.innerHTML = `<div class="empty-state">No events tagged yet</div>`;
+    return;
+  }
+
+  log.innerHTML = state.events.map(ev => `
+    <div class="log-item">
+      <span class="log-time">${ev.timestamp}</span>
+      <span class="log-cat" style="
+        background: ${EVENT_HIERARCHY[ev.category]?.color}22;
+        color: ${EVENT_HIERARCHY[ev.category]?.color}">
+        ${ev.category}
+      </span>
+      <span class="log-event">${ev.event}</span>
+      <span class="log-player">#${ev.player.number} ${ev.player.name}</span>
+      <span class="log-result" style="
+        background: ${RESULT_COLORS[ev.result]}22;
+        color: ${RESULT_COLORS[ev.result]}">
+        ${ev.result}
+      </span>
+      <button class="log-del" onclick="deleteEvent(${ev.id})">✕</button>
+    </div>
+  `).join("");
+}
+
+function deleteEvent(id) {
+  state.events = state.events.filter(e => e.id !== id);
+  renderLog();
+}
+
+// ─── VIDEO ────────────────────────────────────────────────────────────────────
+function setSource(src) {
+  state.videoSource = src;
+  document.getElementById("srcLocal").classList.toggle("active", src === "local");
+  document.getElementById("srcYT").classList.toggle("active",    src === "youtube");
+  document.getElementById("localRow").style.display = src === "local"    ? "flex" : "none";
+  document.getElementById("ytRow").style.display    = src === "youtube"  ? "flex" : "none";
+}
+
+function loadLocal() {
+  const file = document.getElementById("localFile").files[0];
+  if (!file) return;
+  const url  = URL.createObjectURL(file);
+  document.getElementById("videoWrapper").innerHTML = `<video controls src="${url}"></video>`;
+}
+
+function loadYouTube() {
+  const url = document.getElementById("ytUrl").value.trim();
+  let videoId = "";
+  const m1 = url.match(/[?&]v=([^&]+)/);
+  const m2 = url.match(/youtu\.be\/([^?]+)/);
+  if (m1)      videoId = m1[1];
+  else if (m2) videoId = m2[1];
+
+  if (!videoId) { toast("Invalid YouTube URL"); return; }
+
+  document.getElementById("videoWrapper").innerHTML = `
+    <iframe
+      src="https://www.youtube.com/embed/${videoId}?enablejsapi=1"
+      allowfullscreen>
+    </iframe>`;
+}
+
+// ─── ANALYSIS ─────────────────────────────────────────────────────────────────
+function renderAnalysis() {
+  renderHeatmapFilters();
+  renderHeatmap();
+  renderStats();
+}
+
+function renderHeatmapFilters() {
+  const wrap = document.getElementById("heatmapFilters");
+  wrap.innerHTML = `
+    <button class="filter-btn ${state.heatmapFilter === "all" ? "active" : ""}"
+      onclick="setHeatmapFilter('all', this)">All</button>`;
+
+  [...state.roster.home, ...state.roster.away].forEach(p => {
+    const key = `${p.team}-${p.number}`;
+    const btn = document.createElement("button");
+    btn.className   = `filter-btn ${state.heatmapFilter === key ? "active" : ""}`;
+    btn.textContent = `#${p.number} ${p.name}`;
+    btn.onclick     = function () { setHeatmapFilter(key, this); };
+    wrap.appendChild(btn);
+  });
+}
+
+function setHeatmapFilter(key, btn) {
+  state.heatmapFilter = key;
+  document.querySelectorAll("#heatmapFilters .filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  renderHeatmap();
+}
+
+function renderHeatmap() {
+  const canvas = document.getElementById("heatmapCanvas");
+  const wrap   = canvas.parentElement;
+  canvas.width  = wrap.offsetWidth;
+  canvas.height = wrap.offsetHeight;
+  const ctx = canvas.getContext("2d");
+
+  renderHeatmapPitch(ctx, canvas.width, canvas.height);
+
+  let evs = state.events.filter(e => e.coord);
+  if (state.heatmapFilter !== "all") {
+    const [team, num] = state.heatmapFilter.split("-");
+    evs = evs.filter(e => e.team === team && String(e.player.number) === num);
+  }
+
+  if (!evs.length) return;
+
+  evs.forEach(ev => {
+    const px = ev.coord.x / 100 * canvas.width;
+    const py = ev.coord.y / 100 * canvas.height;
+    const r  = Math.min(canvas.width, canvas.height) * 0.1;
+    const g  = ctx.createRadialGradient(px, py, 0, px, py, r);
+    g.addColorStop(0,   "rgba(255, 50,  50,  0.35)");
+    g.addColorStop(0.4, "rgba(255, 200, 0,   0.15)");
+    g.addColorStop(1,   "rgba(0,   100, 255, 0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(px, py, r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function renderHeatmapPitch(ctx, W, H) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(255,255,255,0.2)";
+  ctx.lineWidth   = 1;
+
+  ctx.strokeRect(4, 4, W - 8, H - 8);
+
+  ctx.beginPath();
+  ctx.moveTo(4, H / 2);
+  ctx.lineTo(W - 4, H / 2);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(W / 2, H / 2, H * 0.14, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const paW = W * 0.38, paH = H * 0.23;
+  const gaW = W * 0.14, gaH = H * 0.1;
+  ctx.strokeRect((W - paW) / 2, 4,         paW, paH);
+  ctx.strokeRect((W - gaW) / 2, 4,         gaW, gaH);
+  ctx.strokeRect((W - paW) / 2, H - 4 - paH, paW, paH);
+  ctx.strokeRect((W - gaW) / 2, H - 4 - gaH, gaW, gaH);
+}
+
+// ─── STATS ────────────────────────────────────────────────────────────────────
+function renderStats() {
+  const evs       = state.events;
+  const statsGrid = document.getElementById("statsGrid");
+  const breakdown = document.getElementById("eventBreakdown");
+
+  if (!evs.length) {
+    statsGrid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">No events to analyze</div>`;
+    breakdown.innerHTML = `<div class="empty-state">No events to analyze</div>`;
+    return;
+  }
+
+  const total      = evs.length;
+  const passes     = evs.filter(e => e.event === "Pass" || e.event === "Long Ball");
+  const goodPasses = passes.filter(e => e.result === "Good");
+  const passAcc    = passes.length ? Math.round(goodPasses.length / passes.length * 100) : 0;
+  const shots      = evs.filter(e => e.event === "Shot").length;
+  const defensive  = evs.filter(e => ["Tackle","Interception","Clearance","Block"].includes(e.event)).length;
+
+  statsGrid.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Total Events</div>
+      <div class="stat-value">${total}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Pass Accuracy</div>
+      <div class="stat-value">${passAcc}<span style="font-size:14px; opacity:0.5">%</span></div>
+      <div class="stat-sub">${goodPasses.length} / ${passes.length} passes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Shots</div>
+      <div class="stat-value">${shots}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Defensive Actions</div>
+      <div class="stat-value">${defensive}</div>
+    </div>
+  `;
+
+  const counts = {};
+  evs.forEach(e => { counts[e.event] = (counts[e.event] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const max    = sorted[0]?.[1] || 1;
+
+  breakdown.innerHTML = sorted.map(([ev, count]) => `
+    <div class="breakdown-row">
+      <span class="breakdown-label">${ev}</span>
+      <div class="breakdown-bar-wrap">
+        <div class="breakdown-bar" style="width:${count / max * 100}%"></div>
+      </div>
+      <span class="breakdown-count">${count}</span>
+    </div>
+  `).join("");
+}
+
+// ─── EXPORT JSON ──────────────────────────────────────────────────────────────
 function exportJSON() {
-  const totalHome = Math.floor(homeElapsed / 1000);
-  const totalAway = Math.floor(awayElapsed / 1000);
-  const total = totalHome + totalAway;
-  const homePct = total ? ((totalHome / total) * 100).toFixed(1) : 0;
-  const awayPct = total ? ((totalAway / total) * 100).toFixed(1) : 0;
-  
+  if (!state.events.length) { toast("No events to export"); return; }
+
   const data = {
-    meta: {
-      matchName: matchNameInput.value,
-      matchDate: matchDateInput.value,
-      homeTeam: homeTeamInput.value,
-      awayTeam: awayTeamInput.value,
-      duration: timerDiv.textContent,
-      exportedAt: new Date().toISOString()
-    },
-    stats: {
-      home: stats.home,
-      away: stats.away
-    },
-    possession: {
-      homeSeconds: totalHome,
-      awaySeconds: totalAway,
-      homePercent: homePct + '%',
-      awayPercent: awayPct + '%'
-    },
-    eventLog: eventLog,
-    source: "noltrax-track"
+    session:     state.session,
+    roster:      state.roster,
+    events:      [...state.events].reverse(),
+    exported_at: new Date().toISOString(),
   };
-  
+
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${matchNameInput.value.replace(/\s/g, "_")}_${matchDateInput.value}_stats.json`;
+  const a    = document.createElement("a");
+  a.href     = URL.createObjectURL(blob);
+  a.download = `noltrax-track_${state.session.home}-vs-${state.session.away}_${state.session.date}.json`;
   a.click();
-  URL.revokeObjectURL(url);
-  
-  alert("✅ Stats exported successfully!");
+  toast("Exported");
 }
 
-// ================================
-// INIT
-// ================================
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2000);
+}
 
-console.log("Noltrax Track loaded! Press SPACE to start tracking.");
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+initRosters();
+```
+
+---
