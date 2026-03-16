@@ -39,6 +39,8 @@ let state = {
   heatmapFilter: "all",
 };
 
+let pitchListenerAdded = false;
+
 // ─── PAGE NAVIGATION ──────────────────────────────────────────────────────────
 function showPage(id, btn) {
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
@@ -50,7 +52,6 @@ function showPage(id, btn) {
 
 // ─── SETUP ────────────────────────────────────────────────────────────────────
 function initRosters() {
-  // 11 starting players
   ["home", "away"].forEach(team => {
     const tbody = document.getElementById(team + "Roster");
     tbody.innerHTML = "";
@@ -59,7 +60,6 @@ function initRosters() {
     }
   });
 
-  // 7 substitutes
   ["home", "away"].forEach(team => {
     const tbody = document.getElementById(team + "SubRoster");
     tbody.innerHTML = "";
@@ -118,12 +118,18 @@ function startSession() {
 
   buildTagPanel();
   renderPlayerGrid();
-  drawPitch();
 
+  // Switch page dulu sebelum drawPitch supaya element visible
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
   document.getElementById("page-tagging").classList.add("active");
   document.querySelectorAll(".nav-tab")[1].classList.add("active");
+
+  // drawPitch setelah page visible
+  setTimeout(() => {
+    drawPitch();
+    initPitchListener();
+  }, 50);
 
   toast("Session started");
 }
@@ -259,6 +265,26 @@ function checkReady() {
 }
 
 // ─── PITCH MAP ────────────────────────────────────────────────────────────────
+function initPitchListener() {
+  if (pitchListenerAdded) return;
+  pitchListenerAdded = true;
+
+  const wrap = document.getElementById("pitchWrap");
+  wrap.addEventListener("click", function (e) {
+    const rect      = this.getBoundingClientRect();
+    const x         = ((e.clientX - rect.left)  / rect.width)  * 100;
+    const y         = ((e.clientY - rect.top)   / rect.height) * 100;
+    state.tag.coord = { x: Math.round(x), y: Math.round(y) };
+
+    const canvas = document.getElementById("pitchCanvas");
+    const ctx    = canvas.getContext("2d");
+    renderPitchLines(ctx, canvas.width, canvas.height);
+    drawMarker(ctx, e.clientX - rect.left, e.clientY - rect.top);
+    updateSteps();
+    checkReady();
+  });
+}
+
 function drawPitch() {
   const canvas  = document.getElementById("pitchCanvas");
   const wrap    = document.getElementById("pitchWrap");
@@ -316,20 +342,6 @@ function drawMarker(ctx, x, y) {
   ctx.arc(x, y, 6, 0, Math.PI * 2);
   ctx.stroke();
 }
-
-document.getElementById("pitchWrap").addEventListener("click", function (e) {
-  const rect      = this.getBoundingClientRect();
-  const x         = ((e.clientX - rect.left)  / rect.width)  * 100;
-  const y         = ((e.clientY - rect.top)   / rect.height) * 100;
-  state.tag.coord = { x: Math.round(x), y: Math.round(y) };
-
-  const canvas = document.getElementById("pitchCanvas");
-  const ctx    = canvas.getContext("2d");
-  renderPitchLines(ctx, canvas.width, canvas.height);
-  drawMarker(ctx, e.clientX - rect.left, e.clientY - rect.top);
-  updateSteps();
-  checkReady();
-});
 
 window.addEventListener("resize", () => {
   if (state.session.home) drawPitch();
@@ -627,8 +639,6 @@ function toast(msg) {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-initRosters();
-```
-
----
-
+document.addEventListener("DOMContentLoaded", function () {
+  initRosters();
+});
