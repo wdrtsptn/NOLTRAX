@@ -24,11 +24,11 @@ const RESULT_COLORS = {
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let state = {
-  session:      { home: "", away: "", competition: "", date: "" },
-  roster:       { home: [], away: [] },
-  events:       [],
-  tag:          { category: null, event: null, result: null, player: null, coord: null },
-  videoSource:  "local",
+  session:       { home: "", away: "", competition: "", date: "", venue: "" },
+  roster:        { home: [], away: [] },
+  events:        [],
+  tag:           { category: null, event: null, result: null, player: null, coord: null },
+  videoSource:   "local",
   heatmapFilter: "all",
 };
 
@@ -43,42 +43,65 @@ function showPage(id, btn) {
 
 // ─── SETUP ────────────────────────────────────────────────────────────────────
 function initRosters() {
+  // 11 starting players
   ["home", "away"].forEach(team => {
     const tbody = document.getElementById(team + "Roster");
     tbody.innerHTML = "";
     for (let i = 1; i <= 11; i++) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td><input type="number" min="1" max="99" value="${i}" /></td>
-        <td><input type="text" placeholder="Player ${i}" /></td>
-        <td><button class="del-btn" onclick="this.closest('tr').remove()">✕</button></td>
-      `;
-      tbody.appendChild(tr);
+      tbody.appendChild(makePlayerRow(team, i, false));
+    }
+  });
+
+  // 5 substitutes
+  ["home", "away"].forEach(team => {
+    const tbody = document.getElementById(team + "SubRoster");
+    tbody.innerHTML = "";
+    for (let i = 1; i <= 5; i++) {
+      tbody.appendChild(makePlayerRow(team, i, true));
     }
   });
 }
 
-function addPlayer(team) {
-  const tbody = document.getElementById(team + "Roster");
-  const idx = tbody.rows.length + 1;
+function makePlayerRow(team, idx, isSub) {
   const tr = document.createElement("tr");
+  tr.dataset.team = team;
+  tr.dataset.sub  = isSub ? "1" : "0";
   tr.innerHTML = `
-    <td><input type="number" min="1" max="99" placeholder="${idx}" /></td>
+    <td><input type="number" min="1" max="99" placeholder="No" /></td>
+    <td><input type="text" placeholder="POS" style="text-transform:uppercase;" /></td>
     <td><input type="text" placeholder="Player name" /></td>
     <td><button class="del-btn" onclick="this.closest('tr').remove()">✕</button></td>
   `;
-  tbody.appendChild(tr);
+  return tr;
+}
+
+function addPlayer(team) {
+  // Adds to substitutes section by default
+  const tbody = document.getElementById(team + "SubRoster");
+  tbody.appendChild(makePlayerRow(team, tbody.rows.length + 1, true));
 }
 
 function getRoster(team) {
-  const rows = document.querySelectorAll(`#${team}Roster tr`);
   const players = [];
-  rows.forEach(tr => {
+
+  // Starting players
+  document.querySelectorAll(`#${team}Roster tr`).forEach(tr => {
     const inputs = tr.querySelectorAll("input");
-    const num  = inputs[0].value.trim();
-    const name = inputs[1].value.trim();
-    if (num) players.push({ number: num, name: name || `#${num}`, team });
+    const num    = inputs[0].value.trim();
+    const pos    = inputs[1].value.trim().toUpperCase();
+    const name   = inputs[2].value.trim();
+    if (num) players.push({ number: num, pos: pos || "—", name: name || `#${num}`, team, sub: false });
   });
+
+  // Substitutes
+  document.querySelectorAll(`#${team}SubRoster tr`).forEach(tr => {
+    const inputs = tr.querySelectorAll("input");
+    const num    = inputs[0].value.trim();
+    const pos    = inputs[1].value.trim().toUpperCase();
+    const name   = inputs[2].value.trim();
+    if (num) players.push({ number: num, pos: pos || "—", name: name || `#${num}`, team, sub: true });
+  });
+
   return players;
 }
 
@@ -88,9 +111,15 @@ function startSession() {
     away:        document.getElementById("awayTeam").value.trim()    || "Away",
     competition: document.getElementById("competition").value.trim() || "",
     date:        document.getElementById("matchDate").value          || new Date().toISOString().split("T")[0],
+    venue:       document.getElementById("venue").value.trim()       || "",
   };
+
   state.roster.home = getRoster("home");
   state.roster.away = getRoster("away");
+
+  // Update roster card titles with team names
+  document.getElementById("homeTitleLabel").textContent = state.session.home + " — Roster";
+  document.getElementById("awayTitleLabel").textContent = state.session.away + " — Roster";
 
   buildTagPanel();
   renderPlayerGrid();
@@ -110,7 +139,7 @@ function buildTagPanel() {
   const catGrid = document.getElementById("catGrid");
   catGrid.innerHTML = "";
   Object.entries(EVENT_HIERARCHY).forEach(([cat, data]) => {
-    const btn = document.createElement("button");
+    const btn       = document.createElement("button");
     btn.className   = "cat-btn";
     btn.textContent = cat;
     btn.onclick     = () => selectCategory(cat, btn, data.color);
@@ -121,7 +150,7 @@ function buildTagPanel() {
   const resGrid = document.getElementById("resGrid");
   resGrid.innerHTML = "";
   RESULTS.forEach(res => {
-    const btn = document.createElement("button");
+    const btn       = document.createElement("button");
     btn.className   = "res-btn";
     btn.textContent = res;
     btn.onclick     = () => selectResult(res, btn);
@@ -136,17 +165,16 @@ function selectCategory(cat, btn, color) {
   document.querySelectorAll(".cat-btn").forEach(b => {
     b.classList.remove("selected");
     b.style.background  = "";
-    b.style.borderColor = "rgba(255,255,255,0.12)";
+    b.style.borderColor = "";
   });
   btn.classList.add("selected");
   btn.style.background  = color;
   btn.style.borderColor = color;
 
-  // Render events for this category
   const evGrid = document.getElementById("evGrid");
   evGrid.innerHTML = "";
   EVENT_HIERARCHY[cat].events.forEach(ev => {
-    const b = document.createElement("button");
+    const b       = document.createElement("button");
     b.className   = "ev-btn";
     b.textContent = ev;
     b.onclick     = () => selectEvent(ev, b);
@@ -170,7 +198,7 @@ function selectResult(res, btn) {
   document.querySelectorAll(".res-btn").forEach(b => {
     b.classList.remove("selected");
     b.style.background  = "";
-    b.style.borderColor = "rgba(255,255,255,0.12)";
+    b.style.borderColor = "";
     b.style.color       = "";
   });
   btn.classList.add("selected");
@@ -189,24 +217,26 @@ function renderPlayerGrid() {
     return;
   }
 
-  const addTeamSection = (players, label) => {
+  const addSection = (players, label) => {
     if (!players.length) return;
+
     const lbl = document.createElement("div");
-    lbl.style.cssText = "width:100%; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.35; padding:2px 0;";
+    lbl.style.cssText = "width:100%; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.35; padding:4px 0 2px;";
     lbl.textContent   = label;
     grid.appendChild(lbl);
 
     players.forEach(p => {
-      const btn = document.createElement("button");
+      const btn       = document.createElement("button");
       btn.className   = "pl-btn";
       btn.textContent = `#${p.number} ${p.name}`;
+      if (p.sub) btn.style.opacity = "0.65";
       btn.onclick     = () => selectPlayer(p, btn);
       grid.appendChild(btn);
     });
   };
 
-  addTeamSection(state.roster.home, state.session.home);
-  addTeamSection(state.roster.away, state.session.away);
+  addSection(state.roster.home, state.session.home);
+  addSection(state.roster.away, state.session.away);
 }
 
 function selectPlayer(player, btn) {
@@ -226,8 +256,8 @@ function updateSteps() {
   flags.forEach((filled, i) => {
     const dot = document.getElementById("dot" + i);
     dot.classList.remove("active", "done");
-    if (i < done - 1)    dot.classList.add("done");
-    else if (i === done - 1) dot.classList.add("active");
+    if (i < done - 1)         dot.classList.add("done");
+    else if (i === done - 1)  dot.classList.add("active");
   });
 }
 
@@ -239,11 +269,11 @@ function checkReady() {
 
 // ─── PITCH MAP ────────────────────────────────────────────────────────────────
 function drawPitch() {
-  const canvas = document.getElementById("pitchCanvas");
-  const wrap   = document.getElementById("pitchWrap");
+  const canvas  = document.getElementById("pitchCanvas");
+  const wrap    = document.getElementById("pitchWrap");
   canvas.width  = wrap.offsetWidth;
   canvas.height = wrap.offsetHeight;
-  const ctx = canvas.getContext("2d");
+  const ctx     = canvas.getContext("2d");
   renderPitchLines(ctx, canvas.width, canvas.height);
   if (state.tag.coord) {
     const px = state.tag.coord.x / 100 * canvas.width;
@@ -283,10 +313,9 @@ function renderPitchLines(ctx, W, H) {
   const gaW = W * 0.14;
   const gaH = H * 0.1;
 
-  ctx.strokeStyle = "rgba(255,255,255,0.3)";
   // Top
-  ctx.strokeRect((W - paW) / 2, 4, paW, paH);
-  ctx.strokeRect((W - gaW) / 2, 4, gaW, gaH);
+  ctx.strokeRect((W - paW) / 2, 4,           paW, paH);
+  ctx.strokeRect((W - gaW) / 2, 4,           gaW, gaH);
   // Bottom
   ctx.strokeRect((W - paW) / 2, H - 4 - paH, paW, paH);
   ctx.strokeRect((W - gaW) / 2, H - 4 - gaH, gaW, gaH);
@@ -305,9 +334,9 @@ function drawMarker(ctx, x, y) {
 }
 
 document.getElementById("pitchWrap").addEventListener("click", function (e) {
-  const rect = this.getBoundingClientRect();
-  const x    = ((e.clientX - rect.left)  / rect.width)  * 100;
-  const y    = ((e.clientY - rect.top)   / rect.height) * 100;
+  const rect      = this.getBoundingClientRect();
+  const x         = ((e.clientX - rect.left)  / rect.width)  * 100;
+  const y         = ((e.clientY - rect.top)   / rect.height) * 100;
   state.tag.coord = { x: Math.round(x), y: Math.round(y) };
 
   const canvas = document.getElementById("pitchCanvas");
@@ -342,7 +371,7 @@ function submitEvent() {
     id:        Date.now(),
     timestamp: getTimestamp(),
     team:      t.player.team,
-    player:    { number: t.player.number, name: t.player.name },
+    player:    { number: t.player.number, pos: t.player.pos, name: t.player.name },
     category:  t.category,
     event:     t.event,
     result:    t.result,
@@ -417,14 +446,14 @@ function setSource(src) {
   state.videoSource = src;
   document.getElementById("srcLocal").classList.toggle("active", src === "local");
   document.getElementById("srcYT").classList.toggle("active",    src === "youtube");
-  document.getElementById("localRow").style.display = src === "local"    ? "flex" : "none";
-  document.getElementById("ytRow").style.display    = src === "youtube"  ? "flex" : "none";
+  document.getElementById("localRow").style.display = src === "local"   ? "flex" : "none";
+  document.getElementById("ytRow").style.display    = src === "youtube" ? "flex" : "none";
 }
 
 function loadLocal() {
   const file = document.getElementById("localFile").files[0];
   if (!file) return;
-  const url  = URL.createObjectURL(file);
+  const url = URL.createObjectURL(file);
   document.getElementById("videoWrapper").innerHTML = `<video controls src="${url}"></video>`;
 }
 
@@ -459,8 +488,8 @@ function renderHeatmapFilters() {
       onclick="setHeatmapFilter('all', this)">All</button>`;
 
   [...state.roster.home, ...state.roster.away].forEach(p => {
-    const key = `${p.team}-${p.number}`;
-    const btn = document.createElement("button");
+    const key       = `${p.team}-${p.number}`;
+    const btn       = document.createElement("button");
     btn.className   = `filter-btn ${state.heatmapFilter === key ? "active" : ""}`;
     btn.textContent = `#${p.number} ${p.name}`;
     btn.onclick     = function () { setHeatmapFilter(key, this); };
@@ -476,11 +505,11 @@ function setHeatmapFilter(key, btn) {
 }
 
 function renderHeatmap() {
-  const canvas = document.getElementById("heatmapCanvas");
-  const wrap   = canvas.parentElement;
+  const canvas  = document.getElementById("heatmapCanvas");
+  const wrap    = canvas.parentElement;
   canvas.width  = wrap.offsetWidth;
   canvas.height = wrap.offsetHeight;
-  const ctx = canvas.getContext("2d");
+  const ctx     = canvas.getContext("2d");
 
   renderHeatmapPitch(ctx, canvas.width, canvas.height);
 
@@ -525,10 +554,10 @@ function renderHeatmapPitch(ctx, W, H) {
 
   const paW = W * 0.38, paH = H * 0.23;
   const gaW = W * 0.14, gaH = H * 0.1;
-  ctx.strokeRect((W - paW) / 2, 4,         paW, paH);
-  ctx.strokeRect((W - gaW) / 2, 4,         gaW, gaH);
-  ctx.strokeRect((W - paW) / 2, H - 4 - paH, paW, paH);
-  ctx.strokeRect((W - gaW) / 2, H - 4 - gaH, gaW, gaH);
+  ctx.strokeRect((W - paW) / 2, 4,            paW, paH);
+  ctx.strokeRect((W - gaW) / 2, 4,            gaW, gaH);
+  ctx.strokeRect((W - paW) / 2, H - 4 - paH,  paW, paH);
+  ctx.strokeRect((W - gaW) / 2, H - 4 - gaH,  gaW, gaH);
 }
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
@@ -557,7 +586,7 @@ function renderStats() {
     </div>
     <div class="stat-card">
       <div class="stat-label">Pass Accuracy</div>
-      <div class="stat-value">${passAcc}<span style="font-size:14px; opacity:0.5">%</span></div>
+      <div class="stat-value">${passAcc}<span style="font-size:14px;opacity:0.5">%</span></div>
       <div class="stat-sub">${goodPasses.length} / ${passes.length} passes</div>
     </div>
     <div class="stat-card">
@@ -618,3 +647,4 @@ initRosters();
 ```
 
 ---
+
