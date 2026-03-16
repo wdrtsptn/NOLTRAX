@@ -29,35 +29,26 @@
   <div class="card setup-meta">
     <div class="meta-row">
       <input id="matchName"    placeholder="Match Name" />
-      <select id="competition">
-        <option value="" disabled selected></option>
-        <option>Liga 1</option>
-        <option>Liga 2</option>
-        <option>Piala Indonesia</option>
-        <option>Friendly</option>
-        <option>Other</option>
-      </select>
       <input id="homeTeam"     placeholder="Home Team" />
       <input id="awayTeam"     placeholder="Away Team" />
     </div>
     <div class="meta-row">
-      <input id="analystName"  placeholder="Analyst Name" style="flex:2" />
-      <input id="teamAnalyzed" placeholder="Team Being Analyzed" style="flex:2" />
-      <input id="matchDate"    type="date" style="flex:1" />
+      <input id="analystName"  placeholder="Analyst Name" />
+      <input id="teamAnalyzed" placeholder="Team Being Analyzed" />
+      <input id="matchDate"    type="date" />
     </div>
   </div>
 
   <div class="roster-grid">
 
     <div class="card">
-      <div class="card-title" id="homeTitleLabel">Home Roster</div>
+      <div class="roster-label">HOME ROSTER</div>
       <table class="roster-table">
         <thead>
           <tr>
             <th class="col-no">NO</th>
             <th class="col-pos">POS</th>
             <th class="col-name">NAME</th>
-            <th class="col-del"></th>
           </tr>
         </thead>
         <tbody id="homeRoster"></tbody>
@@ -66,18 +57,16 @@
       <table class="roster-table">
         <tbody id="homeSubRoster"></tbody>
       </table>
-      <button class="add-row-btn" onclick="addPlayer('home')">+ Add Player</button>
     </div>
 
     <div class="card">
-      <div class="card-title" id="awayTitleLabel">Away Roster</div>
+      <div class="roster-label">AWAY ROSTER</div>
       <table class="roster-table">
         <thead>
           <tr>
             <th class="col-no">NO</th>
             <th class="col-pos">POS</th>
             <th class="col-name">NAME</th>
-            <th class="col-del"></th>
           </tr>
         </thead>
         <tbody id="awayRoster"></tbody>
@@ -86,7 +75,6 @@
       <table class="roster-table">
         <tbody id="awaySubRoster"></tbody>
       </table>
-      <button class="add-row-btn" onclick="addPlayer('away')">+ Add Player</button>
     </div>
 
   </div>
