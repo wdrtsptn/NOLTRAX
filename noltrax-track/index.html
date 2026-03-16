@@ -1,375 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Noltrax Track – Live Stats Tracker</title>
-  <link rel="stylesheet" href="track.css">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Noltrax Track</title>
+<link rel="stylesheet" href="noltrax-track.css" />
 </head>
 <body>
 
+<!-- NAVBAR -->
 <nav class="navbar">
   <div class="nav-container">
     <div class="nav-brand">
-      <img src="./assets/20260128_164322.png" alt="Logo" class="nav-logo"> <span class="brand-text">NOLTRAX <span class="brand-origin">TRACK</span></span>
+      <div class="nav-logo">NT</div>
+      <span class="brand-text">Noltrax <span class="brand-sub">Track</span></span>
     </div>
-
-    <ul class="nav-links">
-      <li><a href="navbar/howtrack/index.html">How It Works</a></li>
-      <li><a href="about.html">About</a></li>
-      <li><a href="contact.html">Contact</a></li>
-    </ul>
+    <div class="nav-right">
+      <button class="nav-tab active" onclick="showPage('setup', this)">Setup</button>
+      <button class="nav-tab" onclick="showPage('tagging', this)">Tagging</button>
+      <button class="nav-tab" onclick="showPage('analysis', this)">Analysis</button>
+    </div>
   </div>
 </nav>
 
-  <!-- TOP NAV --
-  <header class="top-nav">
-    <div class="nav-inner">
-      <div class="brand">
-        <div class="logo-box">
-          <img src="assets/20260128_164322.png" alt="Noltrax Logo">
+<!-- SETUP PAGE -->
+<div id="page-setup" class="page active">
+  <div class="setup-grid">
+
+    <div class="card setup-meta">
+      <div class="card-title">Session Info</div>
+      <div class="meta-fields">
+        <input id="homeTeam" placeholder="Home Team" />
+        <input id="awayTeam" placeholder="Away Team" />
+        <input id="competition" placeholder="Competition" />
+        <input id="matchDate" type="date" />
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Home Roster</div>
+      <table class="roster-table">
+        <thead>
+          <tr>
+            <th style="width:50px">#</th>
+            <th>Name</th>
+            <th style="width:32px"></th>
+          </tr>
+        </thead>
+        <tbody id="homeRoster"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addPlayer('home')">+ Add Player</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Away Roster</div>
+      <table class="roster-table">
+        <thead>
+          <tr>
+            <th style="width:50px">#</th>
+            <th>Name</th>
+            <th style="width:32px"></th>
+          </tr>
+        </thead>
+        <tbody id="awayRoster"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addPlayer('away')">+ Add Player</button>
+    </div>
+
+  </div>
+  <button class="start-btn" onclick="startSession()">Start Tagging Session →</button>
+</div>
+
+<!-- TAGGING PAGE -->
+<div id="page-tagging" class="page">
+  <div class="tag-layout">
+
+    <!-- Left: video + log -->
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">Video Source</div>
+        <div class="video-source-row">
+          <button class="source-btn active" id="srcLocal" onclick="setSource('local')">Local File</button>
+          <button class="source-btn" id="srcYT" onclick="setSource('youtube')">YouTube</button>
         </div>
-        <span>NOLTRAX TRACK</span>
+        <div class="video-input-row" id="localRow">
+          <input type="file" id="localFile" accept="video/*" onchange="loadLocal()" />
+        </div>
+        <div class="video-input-row" id="ytRow" style="display:none">
+          <input id="ytUrl" placeholder="Paste YouTube URL..." />
+          <button class="load-btn" onclick="loadYouTube()">Load</button>
+        </div>
+        <div id="videoWrapper">
+          <span class="video-placeholder">No video loaded</span>
+        </div>
       </div>
 
-      <nav class="nav-links">
-        <a href="../index.html">Origin</a>
-        <a href="../noltrax-match/index.html">Match</a>
-        <a href="https://github.com/wdrtsptn" target="_blank">GitHub</a>
-      </nav>
-    </div>
-  </header>
-  
-  <!-- NAVBAR --
-  <nav class="navbar">
-    <div class="nav-container">
-      <div class="nav-brand">
-        <img src="assets/20260128_164322.png" alt="Logo" class="nav-logo">
-        <span class="brand-text">NOLTRAX <span class="brand-origin">TRACK</span></span>
+      <div class="card">
+        <div class="log-header-row">
+          <div class="card-title" style="margin:0">
+            Event Log (<span id="logCount">0</span>)
+          </div>
+          <button class="export-btn" onclick="exportJSON()">↓ Export JSON</button>
+        </div>
+        <div id="eventLog">
+          <div class="empty-state">No events tagged yet</div>
+        </div>
       </div>
-      <ul class="nav-links">
-        <li><a href="../index.html">Home</a></li>
-        <li><a href="../match/match.html">Match</a></li>
-        <li><a href="../data/data.html">Data</a></li>
-      </ul>
-    </div>
-  </nav>
-
-  <!-- HEADER -->
-  <header>
-    <h1>Live Stats Tracker</h1>
-    <div id="metadata">
-      <input type="text" id="matchName" placeholder="Match Name">
-      <input type="date" id="matchDate">
-      <input type="text" id="homeTeam" placeholder="Home Team">
-      <input type="text" id="awayTeam" placeholder="Away Team">
-      <button id="startBtn">Start Tracking</button>
-      <button id="endBtn" disabled>End Match</button>
-      <button id="exportBtn" disabled>Export JSON</button>
-    </div>
-  </header>
-
-  <!-- MAIN CONTAINER -->
-  <div id="container">
-    
-    <!-- EVENT LOG (KIRI - KECIL) -->
-    <div id="logPanel">
-      <h3>Event Log</h3>
-      <div id="status">Press SPACE to start</div>
-      <ul id="log"></ul>
     </div>
 
-    <!-- STATS PANEL (KANAN - LEBAR) -->
-    <div id="statsPanel">
-      <h3>Live Stats</h3>
-      <div id="timer">00:00</div>
-      
-      <!-- POSSESSION STOPWATCH -->
-      <div class="possession-stopwatch">
-        <div class="stopwatch-row">
-          <div class="stopwatch-label">Home Possession</div>
-          <div class="stopwatch-time" id="homeTime">00:00</div>
-        </div>
-        <div class="stopwatch-row">
-          <div class="stopwatch-label">Away Possession</div>
-          <div class="stopwatch-time" id="awayTime">00:00</div>
-        </div>
-        <div class="live-possession" id="livePossession">0% - 0%</div>
-        <div class="final-possession" id="finalPossession"></div>
-        <div class="possession-hint">Press Q to toggle possession</div>
+    <!-- Right: tag panel -->
+    <div class="tag-panel">
+
+      <div class="step-row">
+        <div class="step-dot active" id="dot0"></div>
+        <div class="step-dot" id="dot1"></div>
+        <div class="step-dot" id="dot2"></div>
+        <div class="step-dot" id="dot3"></div>
+        <div class="step-dot" id="dot4"></div>
       </div>
-      
-      <div class="stats-grid">
-        <div class="team-stats home-stats">
-          <h4 id="homeTeamName">Home</h4>
-          <div class="stat-row">
-            <span>Passes</span>
-            <strong id="homePasses">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Shots</span>
-            <strong id="homeShots">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Goals</span>
-            <strong id="homeGoals">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Tackles</span>
-            <strong id="homeTackles">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Interceptions</span>
-            <strong id="homeInterceptions">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Corners</span>
-            <strong id="homeCorners">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Fouls</span>
-            <strong id="homeFouls">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Dribbles</span>
-            <strong id="homeDribbles">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Key Passes</span>
-            <strong id="homeKeyPasses">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Long Balls</span>
-            <strong id="homeLongBalls">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Crosses</span>
-            <strong id="homeCrosses">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Offsides</span>
-            <strong id="homeOffsides">0</strong>
+
+      <div class="card">
+        <div class="section-label">Category</div>
+        <div class="cat-grid" id="catGrid"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-label">Event</div>
+        <div class="event-grid" id="evGrid">
+          <div class="empty-state" style="grid-column:1/-1; padding:12px 0; font-size:11px">
+            Select category first
           </div>
         </div>
+      </div>
 
-        <div class="team-stats away-stats">
-          <h4 id="awayTeamName">Away</h4>
-          <div class="stat-row">
-            <span>Passes</span>
-            <strong id="awayPasses">0</strong>
+      <div class="card">
+        <div class="section-label">Result</div>
+        <div class="result-grid" id="resGrid"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-label">Player</div>
+        <div class="player-scroll" id="playerGrid">
+          <div class="empty-state" style="padding:8px 0; font-size:11px; width:100%">
+            No roster loaded
           </div>
-          <div class="stat-row">
-            <span>Shots</span>
-            <strong id="awayShots">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Goals</span>
-            <strong id="awayGoals">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Tackles</span>
-            <strong id="awayTackles">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Interceptions</span>
-            <strong id="awayInterceptions">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Corners</span>
-            <strong id="awayCorners">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Fouls</span>
-            <strong id="awayFouls">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Dribbles</span>
-            <strong id="awayDribbles">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Key Passes</span>
-            <strong id="awayKeyPasses">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Long Balls</span>
-            <strong id="awayLongBalls">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Crosses</span>
-            <strong id="awayCrosses">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Offsides</span>
-            <strong id="awayOffsides">0</strong>
-          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-label">Location on Pitch</div>
+        <div class="pitch-wrap" id="pitchWrap">
+          <canvas id="pitchCanvas"></canvas>
+        </div>
+        <div class="pitch-hint">Click on pitch to mark location</div>
+      </div>
+
+      <div class="card">
+        <div class="section-label">Notes (Optional)</div>
+        <textarea class="notes-input" id="notesInput" placeholder="Add notes..."></textarea>
+        <div style="height:10px"></div>
+        <button class="submit-btn" id="submitBtn" onclick="submitEvent()">Tag Event</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ANALYSIS PAGE -->
+<div id="page-analysis" class="page">
+  <div class="analysis-layout">
+
+    <div>
+      <div class="card">
+        <div class="card-title">Heatmap</div>
+        <div class="filter-row" id="heatmapFilters">
+          <button class="filter-btn active" onclick="setHeatmapFilter('all', this)">All Players</button>
+        </div>
+        <div class="heatmap-wrap">
+          <canvas id="heatmapCanvas"></canvas>
+        </div>
+        <div class="heatmap-legend">
+          <span>Low</span>
+          <div class="legend-bar"></div>
+          <span>High</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">Stats Overview</div>
+        <div class="stats-grid" id="statsGrid">
+          <div class="empty-state" style="grid-column:1/-1">No events to analyze</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Event Breakdown</div>
+        <div class="event-breakdown" id="eventBreakdown">
+          <div class="empty-state">No events to analyze</div>
         </div>
       </div>
     </div>
 
   </div>
+</div>
 
-  <!-- KEYBOARD GUIDE (COLLAPSIBLE) -->
-  <div id="keyboardSection">
-    <button id="toggleKeyboard" class="toggle-btn">Show Keyboard Shortcuts</button>
-    
-    <div id="keyboardGuide" style="display: none;">
-      <div class="keyboard-grid">
-        
-        <div class="key-section">
-          <h4>HOME TEAM</h4>
-          <div class="key-grid">
-            <div class="key-item"><kbd>P</kbd> Pass</div>
-            <div class="key-item"><kbd>S</kbd> Shot</div>
-            <div class="key-item"><kbd>G</kbd> Goal</div>
-            <div class="key-item"><kbd>T</kbd> Tackle</div>
-            <div class="key-item"><kbd>I</kbd> Interception</div>
-            <div class="key-item"><kbd>C</kbd> Corner</div>
-            <div class="key-item"><kbd>F</kbd> Foul</div>
-            <div class="key-item"><kbd>D</kbd> Dribble</div>
-            <div class="key-item"><kbd>K</kbd> Key Pass</div>
-            <div class="key-item"><kbd>L</kbd> Long Ball</div>
-            <div class="key-item"><kbd>X</kbd> Cross</div>
-            <div class="key-item"><kbd>O</kbd> Offside</div>
-          </div>
-        </div>
+<!-- TOAST -->
+<div id="toast"></div>
 
-        <div class="key-section">
-          <h4>AWAY TEAM</h4>
-          <p style="font-size: 11px; opacity: 0.7; margin-bottom: 8px;">Hold SHIFT + key</p>
-          <div class="key-grid">
-            <div class="key-item"><kbd>⇧P</kbd> Pass</div>
-            <div class="key-item"><kbd>⇧S</kbd> Shot</div>
-            <div class="key-item"><kbd>⇧G</kbd> Goal</div>
-            <div class="key-item"><kbd>⇧T</kbd> Tackle</div>
-            <div class="key-item"><kbd>⇧I</kbd> Interception</div>
-            <div class="key-item"><kbd>⇧C</kbd> Corner</div>
-            <div class="key-item"><kbd>⇧F</kbd> Foul</div>
-            <div class="key-item"><kbd>⇧D</kbd> Dribble</div>
-            <div class="key-item"><kbd>⇧K</kbd> Key Pass</div>
-            <div class="key-item"><kbd>⇧L</kbd> Long Ball</div>
-            <div class="key-item"><kbd>⇧X</kbd> Cross</div>
-            <div class="key-item"><kbd>⇧O</kbd> Offside</div>
-          </div>
-        </div>
-
-        <div class="key-section">
-          <h4>CONTROLS</h4>
-          <div class="key-grid">
-            <div class="key-item"><kbd>SPACE</kbd> Start/Pause Timer</div>
-            <div class="key-item"><kbd>Q</kbd> Toggle Possession</div>
-            <div class="key-item"><kbd>Q</kbd> x2 Stop Possession</div>
-            <div class="key-item"><kbd>Z</kbd> Undo Last</div>
-            <div class="key-item"><kbd>W</kbd> End Match</div>
-            <div class="key-item"><kbd>E</kbd> Export JSON</div>
-            <div class="key-item"><kbd>R</kbd> Reset All</div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <script src="track.js"></script>
-</body>
-</html>
-
-<!--
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>NOLTRAX TRACK</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="track.css">
-</head>
-
-<body>
-
-   <!-- TOP NAV --
-<nav class="navbar">
-  <div class="nav-container">
-    <div class="nav-brand">
-      <img src="./assets/20260128_164322.png" alt="Logo" class="nav-logo"> <span class="brand-text">NOLTRAX <span class="brand-origin">TRACK</span></span>
-    </div>
-
-    <ul class="nav-links">
-      <li><a href="navbar/howtrack/index.html">How It Works</a></li>
-      <li><a href="about.html">About</a></li>
-      <li><a href="contact.html">Contact</a></li>
-    </ul>
-  </div>
-</nav>
-
-  <!-- TOP NAV --
-  <header class="top-nav">
-    <div class="nav-inner">
-      <div class="brand">
-        <div class="logo-box">
-          <img src="assets/20260128_075331.png" alt="Noltrax Logo">
-        </div>
-        <span>NOLTRAX TRACK</span>
-      </div>
-
-      <nav class="nav-links">
-        <a href="../index.html">Origin</a>
-        <a href="../noltrax-match/index.html">Match</a>
-        <a href="https://github.com/wdrtsptn" target="_blank">GitHub</a>
-      </nav>
-    </div>
-  </header>
-
-  <!-- HERO --
-  <section class="hero">
-    <div class="hero-inner">
-      <h2>Welcome to</h2>
-      <h1>Noltrax Track</h1>
-      <p>
-        Transform raw match actions into structured football data.
-        Follow a professional analysis workflow — step by step.
-      </p>
-
-      <div class="cta-grid">
-
-        <a href="unified/track.html" class="cta-card">
-          <h3>Track Event</h3>
-          <p>
-            Capture raw on-ball actions such as passes, shots,
-            duels, fouls, and recoveries.
-          </p>
-          <span>START WITH EVENT →</span>
-        </a>
-
-        <a href="tools/tools1/index.html" class="cta-card">
-          <h3>Track Detail</h3>
-          <p>
-            Add outcome and quality context:
-            success, failure, on target, off target.
-          </p>
-          <span>ADD CONTEXT →</span>
-        </a>
-
-        <a href="tools/tools2/index.html" class="cta-card">
-          <h3>Track Space</h3>
-          <p>
-            Map actions into modern pitch zones:
-            half-space, central lanes, and wide channels.
-          </p>
-          <span>MAP THE FIELD →</span>
-        </a>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- FOOTER --
-<footer class="footer">
-  <p>© 2026 Noltrax Origin. All rights reserved.</p>
-</footer>
-
-  <!-- FOOTER --
-  <footer>
-    © 2026 Noltrax Origin — Noltrax Track
-  </footer>
-
+<script src="noltrax-track.js"></script>
 </body>
 </html>
