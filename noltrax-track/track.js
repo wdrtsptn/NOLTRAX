@@ -214,7 +214,7 @@ function renderPlayerGrid() {
   const addSection = (players, label) => {
     if (!players.length) return;
     const lbl         = document.createElement("div");
-    lbl.style.cssText = "width:100%; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.35; padding:4px 0 2px;";
+    lbl.style.cssText = "width:100%; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:#ffffff; opacity:0.5; padding:4px 0 2px;";
     lbl.textContent   = label;
     grid.appendChild(lbl);
     players.forEach(p => {
@@ -251,16 +251,12 @@ function updateSteps() {
     else if (i === done - 1) dot.classList.add("active");
   });
 
-  // Update pitch hint
-  const hint = document.getElementById("pitchHint");
-  const t2   = state.tag;
-  const ready = t2.category && t2.event && t2.result && t2.player;
+  const hint  = document.getElementById("pitchHint");
+  const ready = t.category && t.event && t.result && t.player;
   if (hint) {
-    hint.textContent = ready
-      ? "✓ Click pitch to tag event"
-      : "Complete all steps above first";
-    hint.style.color = ready ? "#2eb87a" : "";
-    hint.style.opacity = ready ? "0.8" : "0.35";
+    hint.textContent   = ready ? "✓ Click pitch to tag event" : "Complete all steps above first";
+    hint.style.color   = ready ? "#2eb87a" : "#ffffff";
+    hint.style.opacity = ready ? "0.9" : "0.35";
   }
 }
 
@@ -274,7 +270,6 @@ function initPitchListener() {
     const t     = state.tag;
     const ready = t.category && t.event && t.result && t.player;
 
-    // Only accept click if all fields filled
     if (!ready) {
       toast("Complete category, event, result & player first");
       return;
@@ -290,7 +285,6 @@ function initPitchListener() {
     renderPitchLines(ctx, canvas.width, canvas.height);
     drawMarker(ctx, e.clientX - rect.left, e.clientY - rect.top);
 
-    // Auto submit
     submitEvent();
   });
 }
@@ -412,27 +406,42 @@ function renderLog() {
   document.getElementById("logCount").textContent = state.events.length;
 
   if (!state.events.length) {
-    log.innerHTML = `<div class="empty-state">No events tagged yet</div>`;
+    log.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center; padding:32px; color:#ffffff; opacity:0.35; font-size:13px; letter-spacing:1px;">
+          No events tagged yet
+        </td>
+      </tr>`;
     return;
   }
 
-  log.innerHTML = state.events.map(ev => `
-    <div class="log-item">
-      <span class="log-time">${ev.timestamp}</span>
-      <span class="log-cat" style="
-        background: ${EVENT_HIERARCHY[ev.category]?.color}22;
-        color: ${EVENT_HIERARCHY[ev.category]?.color}">
-        ${ev.category}
-      </span>
-      <span class="log-event">${ev.event}</span>
-      <span class="log-player">#${ev.player.number} ${ev.player.name}</span>
-      <span class="log-result" style="
-        background: ${RESULT_COLORS[ev.result]}22;
-        color: ${RESULT_COLORS[ev.result]}">
-        ${ev.result}
-      </span>
-      <button class="log-del" onclick="deleteEvent(${ev.id})">✕</button>
-    </div>
+  log.innerHTML = state.events.map((ev, i) => `
+    <tr>
+      <td class="lt-num">${state.events.length - i}</td>
+      <td class="lt-time">${ev.timestamp}</td>
+      <td class="lt-cat">
+        <span class="log-cat-badge" style="
+          background: ${EVENT_HIERARCHY[ev.category]?.color}22;
+          color: ${EVENT_HIERARCHY[ev.category]?.color}">
+          ${ev.category}
+        </span>
+      </td>
+      <td class="lt-desc">
+        <div class="log-desc-text">
+          <span style="font-weight:600; color:#ffffff">${ev.event}</span>
+          <span class="log-result-badge" style="
+            background: ${RESULT_COLORS[ev.result]}22;
+            color: ${RESULT_COLORS[ev.result]}">
+            ${ev.result}
+          </span>
+          <span style="color:#ffffff; opacity:0.6; font-size:11px">#${ev.player.number} ${ev.player.name}</span>
+        </div>
+      </td>
+      <td class="lt-notes" style="color:#ffffff; opacity:0.7">${ev.notes || "—"}</td>
+      <td class="lt-del">
+        <button class="log-del" onclick="deleteEvent(${ev.id})">✕</button>
+      </td>
+    </tr>
   `).join("");
 }
 
@@ -586,7 +595,7 @@ function renderStats() {
     </div>
     <div class="stat-card">
       <div class="stat-label">Pass Accuracy</div>
-      <div class="stat-value">${passAcc}<span style="font-size:14px;opacity:0.5">%</span></div>
+      <div class="stat-value">${passAcc}<span style="font-size:14px; opacity:0.6">%</span></div>
       <div class="stat-sub">${goodPasses.length} / ${passes.length} passes</div>
     </div>
     <div class="stat-card">
