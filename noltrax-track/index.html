@@ -9,10 +9,11 @@
 <body>
 
 <!-- NAVBAR -->
- <nav class="navbar">
+<nav class="navbar">
   <div class="nav-container">
     <div class="nav-brand">
-      <img src="assets/20260128_164322.png" alt="Logo" class="nav-logo"> <span class="brand-text">NOLTRAX <span class="brand-origin">TRACK</span></span>
+      <img src="assets/20260128_164322.png" alt="Logo" class="nav-logo">
+      <span class="brand-text">NOLTRAX <span class="brand-origin">TRACK</span></span>
     </div>
     <div class="nav-right">
       <button class="nav-tab active" onclick="showPage('setup', this)">Setup</button>
@@ -110,8 +111,20 @@
           </div>
           <button class="export-btn" onclick="exportJSON()">↓ Export JSON</button>
         </div>
-        <div id="eventLog">
-          <div class="empty-state">No events tagged yet</div>
+        <div class="log-table-wrap">
+          <table class="log-table">
+            <thead>
+              <tr>
+                <th class="lt-num">#</th>
+                <th class="lt-time">Time</th>
+                <th class="lt-cat">Category</th>
+                <th class="lt-desc">Descriptor</th>
+                <th class="lt-notes">Notes</th>
+                <th class="lt-del"></th>
+              </tr>
+            </thead>
+            <tbody id="eventLog"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -143,7 +156,6 @@
       </div>
 
       <div class="card">
-        <!--<div class="section-label">Player</div>-->
         <div class="player-scroll" id="playerGrid">
           <div class="empty-state" style="padding:8px 0; font-size:11px; width:100%">
             No roster loaded
@@ -151,18 +163,18 @@
         </div>
       </div>
 
-     <div class="card">
-  <div class="section-label">Location on Pitch</div>
-  <div class="pitch-wrap" id="pitchWrap">
-    <canvas id="pitchCanvas"></canvas>
-  </div>
-  <div class="pitch-hint" id="pitchHint">Complete all steps above first</div>
-</div>
+      <div class="card">
+        <div class="section-label">Location on Pitch</div>
+        <div class="pitch-wrap" id="pitchWrap">
+          <canvas id="pitchCanvas"></canvas>
+        </div>
+        <div class="pitch-hint" id="pitchHint">Complete all steps above first</div>
+      </div>
 
-<div class="card">
-  <div class="section-label">Notes (Optional)</div>
-  <textarea class="notes-input" id="notesInput" placeholder="Add notes..."></textarea>
-</div>
+      <div class="card">
+        <div class="section-label">Notes (Optional)</div>
+        <textarea class="notes-input" id="notesInput" placeholder="Add notes..."></textarea>
+      </div>
 
     </div>
   </div>
@@ -174,7 +186,6 @@
 
     <div>
       <div class="card">
-       <!-- <div class="card-title">Heatmap</div> -->
         <div class="filter-row" id="heatmapFilters">
           <button class="filter-btn active" onclick="setHeatmapFilter('all', this)">All Players</button>
         </div>
