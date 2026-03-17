@@ -149,35 +149,36 @@ body {
 /* HERO */
 .hero {
   min-height: 100vh;
+  padding: 96px 24px 64px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
 }
 
-.hero-inner h2 {
+.hero-inner {
+  max-width: 1000px;
+  width: 100%;
+}
+
+.hero h2 {
   font-size: 16px;
-  color: #ffffff;
-  opacity: 0.85;
-  margin-bottom: 16px;
+  opacity: 0.8;
+  margin-bottom: 12px;
 }
 
-.hero-logo img {
-  width: 300px;
-  margin-bottom: 16px;
+.hero h1 {
+  font-size: 46px;
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
 }
 
-.hero-inner h1 {
-  font-size: 52px;
-  color: #ffffff;
-  margin-bottom: 16px;
-}
-
-.hero-actions {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-  flex-wrap: wrap;
+.hero p {
+  font-size: 15px;
+  opacity: 0.8;
+  max-width: 620px;
+  margin: 0 auto 48px;
+  line-height: 1.6;
 }
 
 /* =========================
