@@ -46,16 +46,11 @@ body {
 }
 
 .nav-logo {
-  width: 32px;
   height: 32px;
+  width: auto;
   background: #1e5eff;
   border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 900;
-  font-size: 13px;
-  letter-spacing: -1px;
+  padding: 4px;
 }
 
 .brand-text {
@@ -66,10 +61,9 @@ body {
   text-transform: uppercase;
 }
 
-.brand-sub {
+.brand-origin {
   font-weight: 300;
   opacity: 0.7;
-  margin-left: 4px;
 }
 
 .nav-right {
