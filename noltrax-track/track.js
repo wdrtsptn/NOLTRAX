@@ -303,31 +303,41 @@ function renderPitchLines(ctx, W, H) {
   ctx.strokeStyle = "rgba(255,255,255,0.3)";
   ctx.lineWidth   = 1;
 
+  // Outline
   ctx.strokeRect(4, 4, W - 8, H - 8);
 
+  // Halfway line — vertikal di tengah (horizontal pitch)
   ctx.beginPath();
-  ctx.moveTo(4, H / 2);
-  ctx.lineTo(W - 4, H / 2);
+  ctx.moveTo(W / 2, 4);
+  ctx.lineTo(W / 2, H - 4);
   ctx.stroke();
 
+  // Center circle
   ctx.beginPath();
-  ctx.arc(W / 2, H / 2, H * 0.14, 0, Math.PI * 2);
+  ctx.arc(W / 2, H / 2, W * 0.08, 0, Math.PI * 2);
   ctx.stroke();
 
+  // Center dot
   ctx.fillStyle = "rgba(255,255,255,0.4)";
   ctx.beginPath();
   ctx.arc(W / 2, H / 2, 2, 0, Math.PI * 2);
   ctx.fill();
 
-  const paW = W * 0.38;
-  const paH = H * 0.23;
-  const gaW = W * 0.14;
-  const gaH = H * 0.1;
+  // Penalty areas kiri dan kanan
+  const paW = W * 0.16;
+  const paH = H * 0.5;
+  const gaW = W * 0.05;
+  const gaH = H * 0.22;
 
-  ctx.strokeRect((W - paW) / 2, 4,            paW, paH);
-  ctx.strokeRect((W - gaW) / 2, 4,            gaW, gaH);
-  ctx.strokeRect((W - paW) / 2, H - 4 - paH,  paW, paH);
-  ctx.strokeRect((W - gaW) / 2, H - 4 - gaH,  gaW, gaH);
+  ctx.strokeStyle = "rgba(255,255,255,0.3)";
+
+  // Kiri
+  ctx.strokeRect(4, (H - paH) / 2, paW, paH);
+  ctx.strokeRect(4, (H - gaH) / 2, gaW, gaH);
+
+  // Kanan
+  ctx.strokeRect(W - 4 - paW, (H - paH) / 2, paW, paH);
+  ctx.strokeRect(W - 4 - gaW, (H - gaH) / 2, gaW, gaH);
 }
 
 function drawMarker(ctx, x, y) {
@@ -550,23 +560,33 @@ function renderHeatmapPitch(ctx, W, H) {
   ctx.strokeStyle = "rgba(255,255,255,0.2)";
   ctx.lineWidth   = 1;
 
+  // Outline
   ctx.strokeRect(4, 4, W - 8, H - 8);
 
+  // Halfway line
   ctx.beginPath();
-  ctx.moveTo(4, H / 2);
-  ctx.lineTo(W - 4, H / 2);
+  ctx.moveTo(W / 2, 4);
+  ctx.lineTo(W / 2, H - 4);
   ctx.stroke();
 
+  // Center circle
   ctx.beginPath();
-  ctx.arc(W / 2, H / 2, H * 0.14, 0, Math.PI * 2);
+  ctx.arc(W / 2, H / 2, W * 0.08, 0, Math.PI * 2);
   ctx.stroke();
 
-  const paW = W * 0.38, paH = H * 0.23;
-  const gaW = W * 0.14, gaH = H * 0.1;
-  ctx.strokeRect((W - paW) / 2, 4,            paW, paH);
-  ctx.strokeRect((W - gaW) / 2, 4,            gaW, gaH);
-  ctx.strokeRect((W - paW) / 2, H - 4 - paH,  paW, paH);
-  ctx.strokeRect((W - gaW) / 2, H - 4 - gaH,  gaW, gaH);
+  // Penalty areas kiri dan kanan
+  const paW = W * 0.16;
+  const paH = H * 0.5;
+  const gaW = W * 0.05;
+  const gaH = H * 0.22;
+
+  // Kiri
+  ctx.strokeRect(4, (H - paH) / 2, paW, paH);
+  ctx.strokeRect(4, (H - gaH) / 2, gaW, gaH);
+
+  // Kanan
+  ctx.strokeRect(W - 4 - paW, (H - paH) / 2, paW, paH);
+  ctx.strokeRect(W - 4 - gaW, (H - gaH) / 2, gaW, gaH);
 }
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
